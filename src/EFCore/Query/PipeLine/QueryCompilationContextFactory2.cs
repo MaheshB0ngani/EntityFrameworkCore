@@ -32,9 +32,10 @@ namespace Microsoft.EntityFrameworkCore.Query.PipeLine
                 _entityQueryableExpressionVisitorsFactory,
                 _queryableMethodTranslatingExpressionVisitorFactory,
                 _shapedQueryOptimizingExpressionVisitorsFactory,
-                _shapedQueryCompilingExpressionVisitorFactory);
-
-            queryCompilationContext.Async = async;
+                _shapedQueryCompilingExpressionVisitorFactory)
+            {
+                Async = async
+            };
 
             return queryCompilationContext;
         }

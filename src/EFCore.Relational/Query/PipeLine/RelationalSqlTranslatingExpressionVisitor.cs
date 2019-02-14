@@ -236,6 +236,12 @@ namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
                     unaryExpression.Type);
             }
 
+            if (unaryExpression.NodeType == ExpressionType.Not
+                && operand is SqlExpression sql)
+            {
+                return new SqlExpression(Expression.Not(sql));
+            }
+
             return unaryExpression.Update(operand);
         }
     }

@@ -48,13 +48,13 @@ namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
             return ((EntityProjectionExpression)_projectionMapping[member]).GetProperty(property);
         }
 
-        public IDictionary<ProjectionMember, int> ApplyProjection()
+        public void ApplyProjection()
         {
             var index = 0;
-            var result = new Dictionary<ProjectionMember, int>();
+            var result = new Dictionary<ProjectionMember, Expression>();
             foreach (var keyValuePair in _projectionMapping)
             {
-                result[keyValuePair.Key] = index;
+                result[keyValuePair.Key] = Constant(index);
                 if (keyValuePair.Value is EntityProjectionExpression entityProjection)
                 {
                     foreach (var property in entityProjection.EntityType.GetProperties())
@@ -70,7 +70,7 @@ namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
                 }
             }
 
-            return result;
+            _projectionMapping = result;
         }
 
         public void ApplyPredicate(SqlExpression expression)
