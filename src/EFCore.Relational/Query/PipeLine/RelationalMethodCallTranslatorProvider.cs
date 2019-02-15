@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
 {
@@ -11,11 +12,13 @@ namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
     {
         private readonly List<IMethodCallTranslator> _methodCallTranslators = new List<IMethodCallTranslator>();
 
-        public RelationalMethodCallTranslatorProvider()
+        public RelationalMethodCallTranslatorProvider(
+            IRelationalTypeMappingSource typeMappingSource,
+            ITypeMappingApplyingExpressionVisitor typeMappingApplyingExpressionVisitor)
         {
             _methodCallTranslators.AddRange(
                 new[] {
-                    new EqualsTranslator()
+                    new EqualsTranslator(typeMappingSource, typeMappingApplyingExpressionVisitor)
                 });
         }
 

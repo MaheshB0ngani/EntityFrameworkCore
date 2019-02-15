@@ -16,17 +16,14 @@ namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
 
         private List<TableExpressionBase> _tables = new List<TableExpressionBase>();
         private readonly List<SqlExpression> _projection = new List<SqlExpression>();
-        private SqlExpression _predicate;
-        private SqlExpression _limit;
-        private SqlExpression _offset;
         private List<OrderingExpression> _orderings = new List<OrderingExpression>();
 
         public IReadOnlyList<SqlExpression> Projection => _projection;
         public IReadOnlyList<TableExpressionBase> Tables => _tables;
         public IReadOnlyList<OrderingExpression> Orderings => _orderings;
-        public SqlExpression Predicate => _predicate;
-        public SqlExpression Limit => _limit;
-        public SqlExpression Offset => _offset;
+        public SqlExpression Predicate { get; private set; }
+        public SqlExpression Limit { get; private set; }
+        public SqlExpression Offset { get; private set; }
 
         public SelectExpression(IEntityType entityType)
             : base("")
@@ -41,7 +38,7 @@ namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
             _projectionMapping[new ProjectionMember()] = new EntityProjectionExpression(entityType, tableExpression);
         }
 
-        public Expression BindProperty(Expression projectionExpression, IProperty property)
+        public SqlExpression BindProperty(Expression projectionExpression, IProperty property)
         {
             var member = (projectionExpression as ProjectionBindingExpression).ProjectionMember;
 
@@ -75,13 +72,19 @@ namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
 
         public void ApplyPredicate(SqlExpression expression)
         {
-            if (_predicate == null)
+            if (Predicate == null)
             {
-                _predicate = expression;
+                Predicate = expression;
             }
             else
             {
-                _predicate = new SqlExpression(AndAlso(_predicate, expression));
+                Predicate = new SqlBinaryExpression(
+                    ExpressionType.AndAlso,
+                    Predicate,
+                    expression,
+                    typeof(bool),
+                    expression.TypeMapping,
+                    true);
             }
         }
 
@@ -115,12 +118,12 @@ namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
 
         public void ApplyLimit(SqlExpression sqlExpression)
         {
-            _limit = sqlExpression;
+            Limit = sqlExpression;
         }
 
         public void ApplyOffset(SqlExpression sqlExpression)
         {
-            _offset = sqlExpression;
+            Offset = sqlExpression;
         }
 
         public void Reverse()
@@ -142,17 +145,5 @@ namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
         {
             _orderings.Clear();
         }
-    }
-
-    public class OrderingExpression : Expression
-    {
-        public OrderingExpression(SqlExpression expression, bool ascending)
-        {
-            Expression = expression;
-            Ascending = ascending;
-        }
-
-        public SqlExpression Expression { get; }
-        public bool Ascending { get; }
     }
 }

@@ -3,11 +3,23 @@
 
 using System;
 using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
 {
     public class EqualsTranslator : IMethodCallTranslator
     {
+        private readonly IRelationalTypeMappingSource _typeMappingSource;
+        private readonly ITypeMappingApplyingExpressionVisitor _typeMappingApplyingExpressionVisitor;
+
+        public EqualsTranslator(
+            IRelationalTypeMappingSource typeMappingSource,
+            ITypeMappingApplyingExpressionVisitor typeMappingApplyingExpressionVisitor)
+        {
+            _typeMappingSource = typeMappingSource;
+            _typeMappingApplyingExpressionVisitor = typeMappingApplyingExpressionVisitor;
+        }
+
         public Expression Translate(MethodCallExpression methodCallExpression)
         {
             Expression left = null;
@@ -31,19 +43,18 @@ namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
             {
                 if (left.Type.UnwrapNullableType() == right.Type.UnwrapNullableType())
                 {
-                    if (left is SqlExpression leftSql)
+                    var typeMapping = ExpressionExtensions.InferTypeMapping(left, right);
+
+                    if (typeMapping == null)
                     {
-                        if (!(right is SqlExpression))
-                        {
-                            right = new SqlExpression(right, leftSql.TypeMapping).ChangeTypeNullablility(left.Type.IsNullableType());
-                        }
-                    }
-                    else if (right is SqlExpression rightSql)
-                    {
-                        left = new SqlExpression(left, rightSql.TypeMapping).ChangeTypeNullablility(right.Type.IsNullableType());
+                        throw new InvalidOperationException("Equals should have at least one argument with TypeMapping.");
                     }
 
-                    return new SqlExpression(Expression.Equal(left, right));
+                    var leftSql = _typeMappingApplyingExpressionVisitor.ApplyTypeMapping(left, typeMapping, false);
+                    var rightSql = _typeMappingApplyingExpressionVisitor.ApplyTypeMapping(right, typeMapping, false);
+
+                    return new SqlBinaryExpression(ExpressionType.Equal, leftSql, rightSql,
+                        typeof(bool), _typeMappingSource.FindMapping(typeof(bool)), true);
                 }
                 else
                 {

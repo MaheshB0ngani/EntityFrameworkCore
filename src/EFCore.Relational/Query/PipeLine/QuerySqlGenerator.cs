@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
 {
-    public class QuerySqlGenerator : ExpressionVisitor
+    public class QuerySqlGenerator : SqlExpressionVisitor
     {
         private readonly IRelationalCommandBuilderFactory _relationalCommandBuilderFactory;
         private readonly ISqlGenerationHelper _sqlGenerationHelper;
@@ -53,181 +53,19 @@ namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
 
             _parametersValues = parameterValues;
 
-            Visit(selectExpression);
+            VisitSelect(selectExpression);
 
             return _relationalCommandBuilder.Build();
         }
 
-        protected override Expression VisitExtension(Expression extensionExpression)
+        protected override Expression VisitSqlFragment(SqlFragmentExpression sqlFragmentExpression)
         {
-            switch (extensionExpression)
-            {
-                case SelectExpression selectExpression:
-                    return VisitSelect(selectExpression);
+            _relationalCommandBuilder.Append(sqlFragmentExpression.Sql);
 
-                case ColumnExpression columnExpression:
-                    return VisitColumn(columnExpression);
-
-                case TableExpression tableExpression:
-                    return VisitTable(tableExpression);
-
-                case SqlFragmentExpression sqlFragmentExpression:
-                    _relationalCommandBuilder.Append(sqlFragmentExpression.Sql);
-
-                    return sqlFragmentExpression;
-
-                case SqlExpression sqlExpression:
-                    var innerExpression = sqlExpression.Expression;
-                    if (innerExpression is ConstantExpression constantExpression)
-                    {
-                        _relationalCommandBuilder
-                            .Append(GenerateConstantLiteral(constantExpression.Value, sqlExpression.TypeMapping));
-                    }
-                    else if (innerExpression is ParameterExpression parameterExpression)
-                    {
-                        _relationalCommandBuilder
-                            .Append(GenerateParameter(parameterExpression, sqlExpression.TypeMapping));
-                    }
-                    else if (innerExpression is SqlCastExpression sqlCastExpression)
-                    {
-                        _relationalCommandBuilder.Append("CAST(");
-                        Visit(sqlCastExpression.Expression);
-                        _relationalCommandBuilder.Append(" AS ");
-                        _relationalCommandBuilder.Append(sqlExpression.TypeMapping.StoreType);
-                        _relationalCommandBuilder.Append(")");
-
-                        return sqlCastExpression;
-                    }
-                    else
-                    {
-                        Visit(innerExpression);
-                    }
-
-                    return sqlExpression;
-
-                case OrderingExpression orderingExpression:
-                    return VisitOrdering(orderingExpression);
-
-                case SqlFunctionExpression sqlFunctionExpression:
-                    return VisitSqlFunction(sqlFunctionExpression);
-
-                case IsNullExpression isNullExpression:
-                    return VisitIsNullExpression(isNullExpression);
-
-                case CaseExpression caseExpression:
-                    return VisitCase(caseExpression);
-            }
-
-            return base.VisitExtension(extensionExpression);
+            return sqlFragmentExpression;
         }
 
-        private Expression VisitCase(CaseExpression caseExpression)
-        {
-            _relationalCommandBuilder.Append("CASE");
-
-            using (_relationalCommandBuilder.Indent())
-            {
-                foreach (var whenClause in caseExpression.WhenClauses)
-                {
-                    _relationalCommandBuilder
-                        .AppendLine()
-                        .Append("WHEN ");
-                    Visit(whenClause.Test);
-                    _relationalCommandBuilder.Append(" THEN ");
-                    Visit(whenClause.Result);
-                }
-
-                if (caseExpression.ElseResult != null)
-                {
-                    _relationalCommandBuilder
-                        .AppendLine()
-                        .Append("ELSE ");
-                    Visit(caseExpression.ElseResult);
-                }
-            }
-
-            _relationalCommandBuilder
-                .AppendLine()
-                .Append("END");
-
-            return caseExpression;
-        }
-
-        private Expression VisitIsNullExpression(IsNullExpression isNullExpression)
-        {
-            Visit(isNullExpression.Expression);
-
-            _relationalCommandBuilder.Append($" IS {(isNullExpression.Negated ? "NOT" : "")} NULL");
-
-            return isNullExpression;
-        }
-
-        private Expression VisitSqlFunction(SqlFunctionExpression sqlFunctionExpression)
-        {
-            if (sqlFunctionExpression.Schema != null)
-            {
-                _relationalCommandBuilder
-                    .Append(_sqlGenerationHelper.DelimitIdentifier(sqlFunctionExpression.Schema))
-                    .Append(".")
-                    .Append(_sqlGenerationHelper.DelimitIdentifier(sqlFunctionExpression.FunctionName));
-            }
-            else
-            {
-                _relationalCommandBuilder.Append(sqlFunctionExpression.FunctionName);
-            }
-
-            _relationalCommandBuilder.Append("(");
-
-            GenerateList(sqlFunctionExpression.Arguments, e => Visit(e));
-
-            _relationalCommandBuilder.Append(")");
-
-            return sqlFunctionExpression;
-        }
-
-        private Expression VisitOrdering(OrderingExpression orderingExpression)
-        {
-            var innerExpression = orderingExpression.Expression.Expression;
-            if (innerExpression is ConstantExpression constantExpression
-                || innerExpression is ParameterExpression parameterExpression)
-            {
-                _relationalCommandBuilder
-                    .Append("(SELECT 1)");
-            }
-            else
-            {
-                Visit(orderingExpression.Expression);
-
-                if (!orderingExpression.Ascending)
-                {
-                    _relationalCommandBuilder.Append(" DESC");
-                }
-            }
-
-            return orderingExpression;
-        }
-
-        private Expression VisitTable(TableExpression tableExpression)
-        {
-            _relationalCommandBuilder
-                .Append(_sqlGenerationHelper.DelimitIdentifier(tableExpression.Table, tableExpression.Schema))
-                .Append(" AS ")
-                .Append(_sqlGenerationHelper.DelimitIdentifier(tableExpression.Alias));
-
-            return tableExpression;
-        }
-
-        protected Expression VisitColumn(ColumnExpression columnExpression)
-        {
-            _relationalCommandBuilder
-                .Append(_sqlGenerationHelper.DelimitIdentifier(columnExpression.Table.Alias))
-                .Append(".")
-                .Append(_sqlGenerationHelper.DelimitIdentifier(columnExpression.Name));
-
-            return columnExpression;
-        }
-
-        protected Expression VisitSelect(SelectExpression selectExpression)
+        protected override Expression VisitSelect(SelectExpression selectExpression)
         {
             _relationalCommandBuilder.Append("SELECT ");
 
@@ -296,52 +134,99 @@ namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
             return selectExpression;
         }
 
-        protected string GenerateParameter(ParameterExpression parameterExpression, RelationalTypeMapping typeMapping)
-        {
-            var parameterNameInCommand = _sqlGenerationHelper.GenerateParameterName(parameterExpression.Name);
 
-            if (_relationalCommandBuilder.ParameterBuilder.Parameters
-                .All(p => p.InvariantName != parameterExpression.Name))
+        protected override Expression VisitSqlFunction(SqlFunctionExpression sqlFunctionExpression)
+        {
+            if (sqlFunctionExpression.Schema != null)
             {
-                _relationalCommandBuilder.AddParameter(
-                    parameterExpression.Name,
-                    parameterNameInCommand,
-                    typeMapping,
-                    parameterExpression.Type.IsNullableType());
+                _relationalCommandBuilder
+                    .Append(_sqlGenerationHelper.DelimitIdentifier(sqlFunctionExpression.Schema))
+                    .Append(".")
+                    .Append(_sqlGenerationHelper.DelimitIdentifier(sqlFunctionExpression.FunctionName));
+            }
+            else
+            {
+                _relationalCommandBuilder.Append(sqlFunctionExpression.FunctionName);
             }
 
-            return _sqlGenerationHelper.GenerateParameterNamePlaceholder(parameterExpression.Name);
+            _relationalCommandBuilder.Append("(");
+
+            GenerateList(sqlFunctionExpression.Arguments, e => Visit(e));
+
+            _relationalCommandBuilder.Append(")");
+
+            return sqlFunctionExpression;
         }
 
-        protected string GenerateConstantLiteral(object value, RelationalTypeMapping typeMapping)
+        protected override Expression VisitColumn(ColumnExpression columnExpression)
         {
-            //var mappingClrType = typeMapping.ClrType.UnwrapNullableType();
+            _relationalCommandBuilder
+                .Append(_sqlGenerationHelper.DelimitIdentifier(columnExpression.Table.Alias))
+                .Append(".")
+                .Append(_sqlGenerationHelper.DelimitIdentifier(columnExpression.Name));
 
-            //if (value == null
-            //    || mappingClrType.IsInstanceOfType(value)
-            //    || value.GetType().IsInteger()
-            //    && (mappingClrType.IsInteger()
-            //    || mappingClrType.IsEnum))
-            //{
-            //    if (value?.GetType().IsInteger() == true
-            //        && mappingClrType.IsEnum)
-            //    {
-            //        value = Enum.ToObject(mappingClrType, value);
-            //    }
-            //}
-
-            return typeMapping.GenerateSqlLiteral(value);
+            return columnExpression;
         }
 
-        protected override Expression VisitBinary(BinaryExpression binaryExpression)
+        protected override Expression VisitTable(TableExpression tableExpression)
         {
-            Visit(binaryExpression.Left);
+            _relationalCommandBuilder
+                .Append(_sqlGenerationHelper.DelimitIdentifier(tableExpression.Table, tableExpression.Schema))
+                .Append(" AS ")
+                .Append(_sqlGenerationHelper.DelimitIdentifier(tableExpression.Alias));
 
-            _relationalCommandBuilder.Append(_operatorMap[binaryExpression.NodeType]);
+            return tableExpression;
+        }
 
-            Visit(binaryExpression.Right);
+        protected override Expression VisitSqlBinary(SqlBinaryExpression sqlBinaryExpression)
+        {
+            Visit(sqlBinaryExpression.Left);
 
-            return binaryExpression;
+            _relationalCommandBuilder.Append(_operatorMap[sqlBinaryExpression.OperatorType]);
+
+            Visit(sqlBinaryExpression.Right);
+
+            return sqlBinaryExpression;
+        }
+
+        protected override Expression VisitSqlConstant(SqlConstantExpression sqlConstantExpression)
+        {
+            _relationalCommandBuilder
+                .Append(sqlConstantExpression.TypeMapping.GenerateSqlLiteral(sqlConstantExpression.Value));
+
+            return sqlConstantExpression;
+        }
+
+        protected override Expression VisitSqlParameter(SqlParameterExpression sqlParameterExpression)
+        {
+            var parameterNameInCommand = _sqlGenerationHelper.GenerateParameterName(sqlParameterExpression.Name);
+
+            if (_relationalCommandBuilder.ParameterBuilder.Parameters
+                .All(p => p.InvariantName != sqlParameterExpression.Name))
+            {
+                _relationalCommandBuilder.AddParameter(
+                    sqlParameterExpression.Name,
+                    parameterNameInCommand,
+                    sqlParameterExpression.TypeMapping,
+                    sqlParameterExpression.Type.IsNullableType());
+            }
+
+            _relationalCommandBuilder
+                .Append(_sqlGenerationHelper.GenerateParameterNamePlaceholder(sqlParameterExpression.Name));
+
+            return sqlParameterExpression;
+        }
+
+        protected override Expression VisitOrdering(OrderingExpression orderingExpression)
+        {
+            Visit(orderingExpression.Expression);
+
+            if (!orderingExpression.Ascending)
+            {
+                _relationalCommandBuilder.Append(" DESC");
+            }
+
+            return orderingExpression;
         }
 
         private void GenerateList<T>(
@@ -360,6 +245,50 @@ namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
 
                 generationAction(items[i]);
             }
+        }
+
+        protected override Expression VisitSqlUnary(SqlUnaryExpression sqlUnaryExpression)
+        {
+            switch (sqlUnaryExpression.OperatorType)
+            {
+                case ExpressionType.Not:
+                    {
+                        _relationalCommandBuilder.Append("NOT (");
+                        Visit(sqlUnaryExpression.Operand);
+                        _relationalCommandBuilder.Append(")");
+
+                        break;
+                    }
+
+                case ExpressionType.Equal:
+                    {
+                        Visit(sqlUnaryExpression.Operand);
+                        _relationalCommandBuilder.Append(" IS NULL");
+
+                        break;
+                    }
+
+                case ExpressionType.NotEqual:
+                    {
+                        Visit(sqlUnaryExpression.Operand);
+                        _relationalCommandBuilder.Append(" IS NOT NULL");
+
+                        break;
+                    }
+
+                case ExpressionType.Convert:
+                    {
+                        _relationalCommandBuilder.Append("CAST(");
+                        Visit(sqlUnaryExpression.Operand);
+                        _relationalCommandBuilder.Append(" AS ");
+                        _relationalCommandBuilder.Append(sqlUnaryExpression.TypeMapping.StoreType);
+                        _relationalCommandBuilder.Append(")");
+
+                        break;
+                    }
+            }
+
+            return sqlUnaryExpression;
         }
     }
 }

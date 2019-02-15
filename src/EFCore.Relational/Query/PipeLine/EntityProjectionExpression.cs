@@ -10,7 +10,8 @@ namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
 {
     public class EntityProjectionExpression : Expression
     {
-        private readonly IDictionary<IProperty, SqlExpression> _propertyExpressionCache = new Dictionary<IProperty, SqlExpression>();
+        private readonly IDictionary<IProperty, ColumnExpression> _propertyExpressionCache
+            = new Dictionary<IProperty, ColumnExpression>();
         private readonly TableExpressionBase _innerTable;
 
         public EntityProjectionExpression(IEntityType entityType, TableExpressionBase innerTable)
@@ -21,11 +22,11 @@ namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
 
         public IEntityType EntityType { get; }
 
-        public SqlExpression GetProperty(IProperty property)
+        public ColumnExpression GetProperty(IProperty property)
         {
             if (!_propertyExpressionCache.TryGetValue(property, out var expression))
             {
-                expression = new SqlExpression(new ColumnExpression(property, _innerTable), property.FindRelationalMapping());
+                expression = new ColumnExpression(property, _innerTable);
                 _propertyExpressionCache[property] = expression;
             }
 

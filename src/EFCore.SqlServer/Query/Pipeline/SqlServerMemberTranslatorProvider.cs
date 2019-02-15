@@ -10,11 +10,11 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Query.Pipeline
     {
         public SqlServerMemberTranslatorProvider(IRelationalTypeMappingSource typeMappingSource)
         {
-            AddTranslators(
-                new IMemberTranslator[] {
-                    new SqlServerDateTimeMemberTranslator(typeMappingSource),
-                    new SqlServerStringMemberTranslator(typeMappingSource)
-                });
+            //AddTranslators(
+            //    new IMemberTranslator[] {
+            //        new SqlServerDateTimeMemberTranslator(typeMappingSource),
+            //        new SqlServerStringMemberTranslator(typeMappingSource)
+            //    });
         }
     }
 }

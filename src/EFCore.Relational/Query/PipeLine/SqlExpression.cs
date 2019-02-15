@@ -7,40 +7,25 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
 {
-    public class SqlExpression : Expression
+    public abstract class SqlExpression : Expression
     {
-        public SqlExpression(Expression expression)
-            : this(expression, typeof(bool), null)
+        protected SqlExpression(Type type, RelationalTypeMapping typeMapping, bool condition)
         {
-        }
-
-        public SqlExpression(Expression expression, RelationalTypeMapping typeMapping)
-            : this(expression, expression.Type, typeMapping)
-        {
-        }
-
-        protected SqlExpression(Expression expression, Type type, RelationalTypeMapping typeMapping)
-        {
-            Expression = expression;
             Type = type;
+            IsCondition = condition;
             TypeMapping = typeMapping;
-            IsCondition = typeMapping == null;
         }
 
-        public SqlExpression ChangeTypeNullablility(bool makeNullable)
+        public SqlExpression InvertCondition()
         {
-            var type = Type.IsNullableType()
-                ? (makeNullable ? Type : Type.UnwrapNullableType())
-                : (makeNullable ? Type.MakeNullable() : Type);
+            IsCondition = !IsCondition;
 
-            return new SqlExpression(Expression, type, TypeMapping);
+            return this;
         }
 
-        public RelationalTypeMapping TypeMapping { get; }
-
-        public Expression Expression { get; }
-        public bool IsCondition { get; }
-        public override Type Type { get; }
         public override ExpressionType NodeType => ExpressionType.Extension;
+        public override Type Type { get; }
+        public bool IsCondition { get; private set; }
+        public RelationalTypeMapping TypeMapping { get; }
     }
 }

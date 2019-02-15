@@ -100,7 +100,8 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
                 // New Query Pipeline
                 { typeof(IQuerySqlGeneratorFactory2), new ServiceCharacteristics(ServiceLifetime.Singleton) },
                 { typeof(IMethodCallTranslatorProvider), new ServiceCharacteristics(ServiceLifetime.Singleton) },
-                { typeof(IMemberTranslatorProvider), new ServiceCharacteristics(ServiceLifetime.Singleton) }
+                { typeof(IMemberTranslatorProvider), new ServiceCharacteristics(ServiceLifetime.Singleton) },
+                { typeof(ITypeMappingApplyingExpressionVisitor), new ServiceCharacteristics(ServiceLifetime.Singleton) }
             };
 
         /// <summary>
@@ -183,6 +184,7 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure
             TryAdd<IMethodCallTranslatorProvider, RelationalMethodCallTranslatorProvider>();
             TryAdd<IMemberTranslatorProvider, RelationalMemberTranslatorProvider>();
             TryAdd<IEntityQueryableExpressionVisitorsFactory, RelationalEntityQueryableExpressionVisitorsFactory>();
+            TryAdd<ITypeMappingApplyingExpressionVisitor, TypeMappingApplyingExpressionVisitor>();
 
             TryAdd<ISingletonUpdateSqlGenerator>(
                 p =>

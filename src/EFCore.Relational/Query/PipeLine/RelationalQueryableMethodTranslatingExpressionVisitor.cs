@@ -17,11 +17,13 @@ namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
 
         public RelationalQueryableMethodTranslatingExpressionVisitor(
             IRelationalTypeMappingSource typeMappingSource,
+            ITypeMappingApplyingExpressionVisitor typeMappingApplyingExpressionVisitor,
             IMemberTranslatorProvider memberTranslatorProvider,
             IMethodCallTranslatorProvider methodCallTranslatorProvider)
         {
             _sqlTranslator = new RelationalSqlTranslatingExpressionVisitor(
                 typeMappingSource,
+                typeMappingApplyingExpressionVisitor,
                 memberTranslatorProvider,
                 methodCallTranslatorProvider);
             _typeMappingSource = typeMappingSource;
@@ -29,14 +31,14 @@ namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
 
         protected override ShapedQueryExpression TranslateAll(ShapedQueryExpression source, LambdaExpression predicate)
         {
-            var translation = TranslateLambdaExpression(source, predicate, true);
+            //var translation = TranslateLambdaExpression(source, predicate, true);
 
-            if (translation?.IsCondition == true)
-            {
-                ((SelectExpression)source.QueryExpression).ApplyPredicate(translation);
+            //if (translation?.IsCondition == true)
+            //{
+            //    ((SelectExpression)source.QueryExpression).ApplyPredicate(translation);
 
-                return source;
-            }
+            //    return source;
+            //}
 
             throw new InvalidOperationException();
         }
@@ -68,8 +70,9 @@ namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
                     {
                         new SqlFragmentExpression("*")
                     },
-                    typeof(int))
-                    .ApplyDefaultTypeMapping(_typeMappingSource);
+                    typeof(int),
+                    _typeMappingSource.FindMapping(typeof(int)),
+                    false);
 
             var _projectionMapping = new Dictionary<ProjectionMember, Expression>
             {
@@ -104,7 +107,11 @@ namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
 
             var selectExpression = (SelectExpression)source.QueryExpression;
 
-            selectExpression.ApplyLimit(Expression.Constant(1).ApplyTypeMapping(_typeMappingSource.FindMapping(typeof(int))));
+            selectExpression.ApplyLimit(
+                new SqlConstantExpression(
+                    Expression.Constant(1),
+                    _typeMappingSource.FindMapping(typeof(int)),
+                    false));
 
             return source;
         }
@@ -128,7 +135,11 @@ namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
 
             selectExpression.Reverse();
 
-            selectExpression.ApplyLimit(Expression.Constant(1).ApplyTypeMapping(_typeMappingSource.FindMapping(typeof(int))));
+            selectExpression.ApplyLimit(
+                new SqlConstantExpression(
+                    Expression.Constant(1),
+                    _typeMappingSource.FindMapping(typeof(int)),
+                    false));
 
             return source;
         }
@@ -192,22 +203,26 @@ namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
 
             var selectExpression = (SelectExpression)source.QueryExpression;
 
-            selectExpression.ApplyLimit(Expression.Constant(1).ApplyTypeMapping(_typeMappingSource.FindMapping(typeof(int))));
+            selectExpression.ApplyLimit(
+                new SqlConstantExpression(
+                    Expression.Constant(1),
+                    _typeMappingSource.FindMapping(typeof(int)),
+                    false));
 
             return source;
         }
 
         protected override ShapedQueryExpression TranslateSkip(ShapedQueryExpression source, Expression count)
         {
-            var selectExpression = (SelectExpression)source.QueryExpression;
-            var translation = TranslateExpression(selectExpression, count, false);
+            //var selectExpression = (SelectExpression)source.QueryExpression;
+            //var translation = TranslateExpression(selectExpression, count, false);
 
-            if (translation != null)
-            {
-                selectExpression.ApplyOffset(translation);
+            //if (translation != null)
+            //{
+            //    selectExpression.ApplyOffset(translation);
 
-                return source;
-            }
+            //    return source;
+            //}
 
             throw new NotImplementedException();
         }
@@ -218,15 +233,15 @@ namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
 
         protected override ShapedQueryExpression TranslateTake(ShapedQueryExpression source, Expression count)
         {
-            var selectExpression = (SelectExpression)source.QueryExpression;
-            var translation = TranslateExpression(selectExpression, count, false);
+            //var selectExpression = (SelectExpression)source.QueryExpression;
+            //var translation = TranslateExpression(selectExpression, count, false);
 
-            if (translation != null)
-            {
-                selectExpression.ApplyLimit(translation);
+            //if (translation != null)
+            //{
+            //    selectExpression.ApplyLimit(translation);
 
-                return source;
-            }
+            //    return source;
+            //}
 
             throw new NotImplementedException();
         }
@@ -235,14 +250,14 @@ namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
 
         protected override ShapedQueryExpression TranslateThenBy(ShapedQueryExpression source, LambdaExpression keySelector, bool ascending)
         {
-            var translation = TranslateLambdaExpression(source, keySelector, false);
+            //var translation = TranslateLambdaExpression(source, keySelector, false);
 
-            if (translation != null)
-            {
-                ((SelectExpression)source.QueryExpression).ApplyThenBy(new OrderingExpression(translation, ascending));
+            //if (translation != null)
+            //{
+            //    ((SelectExpression)source.QueryExpression).ApplyThenBy(new OrderingExpression(translation, ascending));
 
-                return source;
-            }
+            //    return source;
+            //}
 
             throw new InvalidOperationException();
         }

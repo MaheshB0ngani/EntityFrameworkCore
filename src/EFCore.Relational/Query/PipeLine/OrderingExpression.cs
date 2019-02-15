@@ -1,24 +1,19 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-using System;
 using System.Linq.Expressions;
 
 namespace Microsoft.EntityFrameworkCore.Relational.Query.PipeLine
 {
-    public class IsNullExpression : Expression
+    public class OrderingExpression : Expression
     {
-        public IsNullExpression(SqlExpression expression, bool negated = false)
+        public OrderingExpression(SqlExpression expression, bool ascending)
         {
             Expression = expression;
-            Negated = negated;
+            Ascending = ascending;
         }
 
         public SqlExpression Expression { get; }
-        public bool Negated { get; }
-
-        public override ExpressionType NodeType => ExpressionType.Extension;
-
-        public override Type Type => typeof(bool);
+        public bool Ascending { get; }
     }
 }

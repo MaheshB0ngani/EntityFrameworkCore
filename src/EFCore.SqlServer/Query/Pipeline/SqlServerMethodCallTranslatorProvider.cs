@@ -8,14 +8,16 @@ namespace Microsoft.EntityFrameworkCore.SqlServer.Query.Pipeline
 {
     public class SqlServerMethodCallTranslatorProvider : RelationalMethodCallTranslatorProvider
     {
-        public SqlServerMethodCallTranslatorProvider(IRelationalTypeMappingSource typeMappingSource)
+        public SqlServerMethodCallTranslatorProvider(IRelationalTypeMappingSource typeMappingSource,
+            ITypeMappingApplyingExpressionVisitor typeMappingApplyingExpressionVisitor)
+            : base(typeMappingSource, typeMappingApplyingExpressionVisitor)
         {
-            AddTranslators(new IMethodCallTranslator[]
-            {
-                new SqlServerMathTranslator(typeMappingSource),
-                new SqlServerNewGuidTranslator(typeMappingSource),
-                new SqlServerStringMethodTranslator(typeMappingSource)
-            });
+            //AddTranslators(new IMethodCallTranslator[]
+            //{
+            //    new SqlServerMathTranslator(typeMappingSource),
+            //    new SqlServerNewGuidTranslator(typeMappingSource),
+            //    new SqlServerStringMethodTranslator(typeMappingSource)
+            //});
         }
     }
 }
